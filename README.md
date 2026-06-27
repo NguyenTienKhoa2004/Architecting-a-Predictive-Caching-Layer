@@ -66,7 +66,7 @@ This means the top 0.18% of keys handle over half of all server traffic, confirm
 
 ### Data Augmentation Strategy
 
-The original 7-day trace is insufficient for a rigorous Train/Val/Test split. To extend to 14 days without introducing distribution shift (concept drift), we apply **Self-Stitching Time-Shift with Gaussian Noise Injection (±5%)**:
+The original 7-day trace is insufficient for a rigorous Train/Val/Test split. To extend to 14 days without introducing distribution shift (concept drift), we apply **a data augmentation method using time-shifting combined with Gaussian noise insertion.**:
 
 1. **Duplicate** the 7-day matrix into a second copy.
 2. **Shift** the time index of the copy to follow immediately after the original.
