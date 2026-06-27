@@ -1,0 +1,19 @@
+# Python cache and environments
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+
+# Project specific Data and Models (DO NOT PUSH BIG FILES TO GITHUB)
+data/
+*.parquet
+*.zst
+*.pth
+*.joblib
+
+# IDEs and OS
+.vscode/
+.idea/
+.DS_Store
