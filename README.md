@@ -41,6 +41,7 @@ This thesis proposes a **proactive** approach: using an LSTM neural network trai
 | Property | Value |
 |---|---|
 | **Source** | Twitter Twemcache Production Traces (Cluster 18) |
+| **Dataset Links** | [GitHub Repository](https://github.com/twitter/cache-trace) <br> [Cluster Data](https://ftp.pdl.cmu.edu/pub/datasets/twemcacheWorkload/open_source/) |
 | **Raw Format** | Zstandard-compressed CSV (~8 GB) |
 | **Base Duration** | 7 days of real server access logs |
 | **Augmented Duration** | 14 days (Data Augmentation 7d -> 14d) |
