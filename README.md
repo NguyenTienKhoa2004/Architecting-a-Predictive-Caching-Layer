@@ -306,6 +306,42 @@ After training completes, `data/best_lstm_model.pth` and `data/scaler.joblib` ar
 
 ---
 
+## References (IEEE Format)
+
+### Architecture Benchmarking (Literature Review — Chapter 2)
+
+> **[1]** Authors (see IEEE page), "A Predictive Caching Strategy Tailored to a Real-World Dataset," *IEEE Xplore*, 2024. [Online]. Available: https://ieeexplore.ieee.org/document/10644108
+>
+> **Usage:** Benchmarked against this work's use of LSTM for optimizing Cache Hit Rate. While effective, their reliance on Markov-based models introduces excessive computational overhead — a limitation our single-node architecture is specifically designed to avoid.
+
+### LSTM Regularization & Dropout Design (AI Design — Chapter 3)
+
+> **[2]** W. Zaremba, I. Sutskever, and O. Vinyals, "Recurrent Neural Network Regularization," *arXiv preprint arXiv:1409.2329*, 2014. [Online]. Available: https://arxiv.org/pdf/1409.2329
+>
+> **Usage:** Justifies the decision to apply Dropout only on non-recurrent (vertical) connections between LSTM layers, preserving long-term memory flow through the cell state while preventing overfitting.
+
+### Data Preprocessing & Anti-Leakage Principles (Design & Implementation — Chapters 3 & 4)
+
+> **[3]** LDS Team, "Mastering LSTMs for Time Series: When Deep Learning Beats Statistics," *Let's Data Science*, Nov. 2025. [Online]. Available: https://letsdatascience.com/blog/mastering-lstms-for-time-series-when-deep-learning-beats-statistics
+>
+> **Usage:** Supports the principle that the scaler (MinMaxScaler) must be fit exclusively on the Train set to prevent data leakage. Also explains LSTM's internal gating mechanism for resolving the Vanishing Gradient problem.
+
+### Data Leakage Definition & Prevention (Implementation — Chapter 4)
+
+> **[4]** T. Mucci, "What is data leakage in machine learning?," *IBM Think*. [Online]. Available: https://www.ibm.com/think/topics/data-leakage-machine-learning
+>
+> **Usage:** Provides an industry-standard definition of data leakage from IBM, reinforcing the Strict Chronological Split (10-2-2 days, no shuffling) methodology used in this project to prevent train-test contamination.
+
+### Data Augmentation & Noise Injection for Time Series (Implementation — Chapter 4)
+
+> **[5]** Zilliz, "What is the role of noise injection in data augmentation?," *Milvus AI Quick Reference*, 2026. [Online]. Available: https://milvus.io/ai-quick-reference/what-is-the-role-of-noise-injection-in-data-augmentation
+
+> **[6]** Zilliz, "How is data augmentation applied to time-series data?," *Milvus AI Quick Reference*, 2026. [Online]. Available: https://milvus.io/ai-quick-reference/how-is-data-augmentation-applied-to-timeseries-data
+>
+> **Usage:** Validates the 7-day to 14-day augmentation method. Confirms that Gaussian Noise Injection (±5%) is an established technique for generating synthetic time-series data that closely approximates natural variance while preventing overfitting.
+
+---
+
 ## License
 
 This project is part of an undergraduate thesis. All rights reserved.
