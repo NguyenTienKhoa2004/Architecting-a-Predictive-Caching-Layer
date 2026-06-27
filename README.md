@@ -52,7 +52,17 @@ This thesis proposes a **proactive** approach: using an LSTM neural network trai
 
 ### Why Only 2,000 Keys?
 
-Server access patterns follow **Zipf's Law**: a tiny fraction of keys receive the vast majority of traffic. The top 2,000 keys capture the meaningful signal while the remaining 99% long-tail keys contribute mostly noise. Pruning them prevents Out-of-Memory errors during LSTM training without sacrificing predictive power.
+Server access patterns follow **Zipf's Law**, where a small fraction of keys receives a disproportionately large share of traffic. Verified against the actual dataset:
+
+| Metric | Value |
+|--------|-------|
+| Total unique keys in Cluster 18 | 1,132,548 |
+| Total GET requests | 1,315,040,171 |
+| Top 2,000 keys (0.18% of all keys) | 727,361,295 GETs (**55.31%** of total traffic) |
+
+This means the top 0.18% of keys handle over half of all server traffic, confirming a strong Zipf-like concentration. The 2,000-key boundary is a deliberate **trade-off between traffic coverage and computational feasibility** — the LSTM's fully-connected output layer scales linearly with the number of keys, and exceeding this threshold risks Out-of-Memory errors during training on consumer hardware.
+
+> **Acknowledged Limitation:** The remaining ~45% of traffic is distributed across 1.13 million long-tail keys. Increasing `TOP_K` to improve coverage is identified as a direction for future work.
 
 ### Data Augmentation Strategy
 
