@@ -43,7 +43,7 @@ This thesis proposes a **proactive** approach: using an LSTM neural network trai
 | **Source** | Twitter Twemcache Production Traces (Cluster 18) |
 | **Raw Format** | Zstandard-compressed CSV (~8 GB) |
 | **Base Duration** | 7 days of real server access logs |
-| **Augmented Duration** | 14 days (via Self-Stitching Time-Shift) |
+| **Augmented Duration** | 14 days (Data Augmentation 7d -> 14d) |
 | **Time Resolution** | 5-minute bins (buckets) |
 | **Final Matrix Shape** | 4,032 rows × 2,000 columns |
 | **Rows** | Each row = one 5-minute time bin |
@@ -85,27 +85,27 @@ This preserves the natural **diurnal patterns** (day/night traffic cycles) while
 │  Raw Twitter Traces (.zst)                                      │
 │         │                                                       │
 │         ▼                                                       │
-│  ┌──────────────┐   Streaming decompression + 5-min binning     │
-│  │ step1_peek   │   + Long-tail pruning (Top 2000 keys)         │
-│  │ step2_3_agg  │   + Data Augmentation (7d → 14d)              │
-│  └──────┬───────┘                                               │
-│         │  .parquet (4032 × 2000)                                │
+│  ┌───────────────┐  Streaming decompression + 5-min binning     │
+│  │ step01_inspect│  + Long-tail pruning (Top 2000 keys)         │
+│  │ step02_data_en│  + Data Augmentation (7d → 14d)              │
+│  └──────┬────────┘                                              │
+│         │  .parquet (4032 × 2000)                               │
 │         ▼                                                       │
-│  ┌──────────────┐   Strict Chronological Split                  │
-│  │ step3_1_split│   Train: 10 days │ Val: 2 days │ Test: 2 days │
-│  └──────┬───────┘                                               │
+│  ┌───────────────┐  Strict Chronological Split                  │
+│  │ step03_split_d│  Train: 10 days │ Val: 2 days │ Test: 2 days │
+│  └──────┬────────┘                                              │
 │         ▼                                                       │
-│  ┌──────────────┐   MinMaxScaler fit on Train ONLY              │
-│  │ step3_2_scale│   (Preventing Lookahead Bias)                 │
-│  └──────┬───────┘                                               │
+│  ┌───────────────┐  MinMaxScaler fit on Train ONLY              │
+│  │ step04_scale_f│  (Preventing Lookahead Bias)                 │
+│  └──────┬────────┘                                              │
 │         ▼                                                       │
-│  ┌──────────────┐   Sliding Window Dataset + DataLoader         │
-│  │ step3_3_data │   (shuffle=False, boundary overlap handling)  │
-│  └──────┬───────┘                                               │
+│  ┌───────────────┐  Sliding Window Dataset + DataLoader         │
+│  │ step05_sliding│  (shuffle=False, boundary overlap handling)  │
+│  └──────┬────────┘                                              │
 │         ▼                                                       │
-│  ┌──────────────┐   2-Layer LSTM + Training Loop                │
-│  │ step5_train  │   Early Stopping + Dropout + Grad Clipping    │
-│  └──────┬───────┘                                               │
+│  ┌───────────────┐  2-Layer LSTM + Training Loop                │
+│  │ step06_train_m│  Early Stopping + Dropout + Grad Clipping    │
+│  └──────┬────────┘                                              │
 │         │                                                       │
 │         ▼                                                       │
 │    best_lstm_model.pth  ←  Deployable AI Brain                  │
@@ -114,7 +114,7 @@ This preserves the natural **diurnal patterns** (day/night traffic cycles) while
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │          UPCOMING: Weeks 3-6                             │   │
 │  │  Docker + Redis Single-Node → AI Pre-fetching Engine     │   │
-│  │  → Benchmark vs LRU/LFU → Stress Testing                │   │
+│  │  → Benchmark vs LRU/LFU → Stress Testing                 │   │
 │  └──────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -125,11 +125,11 @@ This preserves the natural **diurnal patterns** (day/night traffic cycles) while
 
 ### Phase 1: Data Engineering (Week 1)
 
-#### Step 1 — Raw Data Inspection (`step1_peek.py`)
+#### Step 1 — Raw Data Inspection (`step01_inspect_raw_data.py`)
 
 A minimal script to peek at the first 2,000 bytes of the compressed `.zst` file, confirming the CSV schema before building the full parser.
 
-#### Step 2-3 — Streaming Aggregation & Augmentation (`step2_3_aggregator.py`)
+#### Step 2 — Streaming Aggregation & Augmentation (`step02_data_engineering.py`)
 
 This is the core data engineering script. It processes an 8 GB compressed file **without ever loading it fully into RAM** by using `zstandard` streaming decompression.
 
@@ -148,7 +148,7 @@ This is the core data engineering script. It processes an 8 GB compressed file *
 
 ### Phase 2: AI Model Development (Week 2)
 
-#### Step 3.1 — Strict Chronological Split (`step3_1_split_data.py`)
+#### Step 3.1 — Strict Chronological Split (`step03_chronological_split.py`)
 
 The dataset is split **strictly by time order** (no random shuffling) to prevent temporal data leakage:
 
@@ -158,13 +158,13 @@ The dataset is split **strictly by time order** (no random shuffling) to prevent
 | **Validation** | Days 11–12 | 2,880 – 3,455 | Early Stopping & hyperparameter tuning |
 | **Test** | Days 13–14 | 3,456 – 4,031 | Final unbiased evaluation |
 
-#### Step 3.2 — Feature Scaling (`step3_2_scale_data.py`)
+#### Step 3.2 — Feature Scaling (`step04_feature_scaling.py`)
 
 Applies `MinMaxScaler(0, 1)` to normalize all features. **Critical design decision:** the scaler is fit **exclusively on the Train set**, then applied (transform-only) to Val and Test. This prevents **Lookahead Bias** — the model never sees future statistical information during training.
 
 The fitted scaler object is saved as `scaler.joblib` for later use in `inverse_transform` (converting normalized predictions back to real request counts).
 
-#### Step 3.3 — Sliding Window Dataset (`step3_3_dataset.py`)
+#### Step 3.3 — Sliding Window Dataset (`step05_sliding_window_dataset.py`)
 
 Implements a PyTorch `Dataset` with a sliding window approach:
 
@@ -175,7 +175,7 @@ Implements a PyTorch `Dataset` with a sliding window approach:
 
 **`shuffle=False` is enforced on all three DataLoaders** (Train, Val, Test). For time-series data, shuffling destroys the macro-temporal order that the LSTM's cell state relies on to learn long-range dependencies like diurnal cycles.
 
-#### Step 5 — LSTM Training & Evaluation (`step5_train_model.py`)
+#### Step 4 — LSTM Training & Evaluation (`step06_train_lstm_model.py`)
 
 **Model Architecture:**
 
@@ -218,29 +218,30 @@ The sub-millisecond inference latency confirms that the LSTM model will **not** 
 
 ```
 Thesis_v2/
-├── data/                          # (git-ignored) All data and model artifacts
-│   ├── cluster18.sort.sample10.zst    # Raw Twitter trace (~8 GB)
-│   ├── train_data.parquet             # Raw Train split (10 days)
-│   ├── val_data.parquet               # Raw Validation split (2 days)
-│   ├── test_data.parquet              # Raw Test split (2 days)
-│   ├── train_scaled.parquet           # Normalized Train (0-1)
-│   ├── val_scaled.parquet             # Normalized Validation (0-1)
-│   ├── test_scaled.parquet            # Normalized Test (0-1)
-│   ├── scaler.joblib                  # Fitted MinMaxScaler for inverse_transform
-│   └── best_lstm_model.pth            # Best LSTM weights (lowest Val Loss)
+├── data/                                # (git-ignored) All data and model artifacts
+│   ├── cluster18.sort.sample10.zst      # Raw Twitter trace (~8 GB)
+│   ├── train_data.parquet               # Raw Train split (10 days)
+│   ├── val_data.parquet                 # Raw Validation split (2 days)
+│   ├── test_data.parquet                # Raw Test split (2 days)
+│   ├── train_scaled.parquet             # Normalized Train (0-1)
+│   ├── val_scaled.parquet               # Normalized Validation (0-1)
+│   ├── test_scaled.parquet              # Normalized Test (0-1)
+│   ├── scaler.joblib                    # Fitted MinMaxScaler for inverse_transform
+│   └── best_lstm_model.pth              # Best LSTM weights (lowest Val Loss)
 │
 ├── docs/
-│   └── thesis_proposal.md            # Full thesis proposal document
+│   └── thesis_proposal.md               # Full thesis proposal document
 │
-├── step1_peek.py                  # Quick inspection of raw .zst data
-├── step2_3_aggregator.py          # Streaming parser + augmentation pipeline
-├── step3_1_split_data.py          # Chronological Train/Val/Test split
-├── step3_2_scale_data.py          # MinMaxScaler normalization
-├── step3_3_dataset.py             # PyTorch Dataset & DataLoader setup
-├── step5_train_model.py           # LSTM architecture, training & evaluation
+├── step01_inspect_raw_data.py           # Quick inspection of raw .zst data
+├── step02_data_engineering.py           # Streaming parser + augmentation pipeline
+├── step03_chronological_split.py        # Chronological Train/Val/Test split
+├── step04_feature_scaling.py            # MinMaxScaler normalization
+├── step05_sliding_window_dataset.py     # PyTorch Dataset & DataLoader setup
+├── step06_train_lstm_model.py           # LSTM architecture, training & evaluation
+├── verify_zipf.py                       # Verify top 2000 keys coverage vs actual
 │
-├── .gitignore                     # Excludes data/, *.parquet, *.zst, *.pth
-└── README.md                     # This file
+├── .gitignore                           # Excludes data/, *.parquet, *.zst, *.pth
+└── README.md                            # This file
 ```
 
 ---
@@ -260,19 +261,19 @@ pip install torch pandas numpy scikit-learn joblib zstandard
 #    (cluster18.sort.sample10.zst must be downloaded separately)
 
 # 2. Parse raw traces into 14-day augmented matrix
-python step2_3_aggregator.py
+python step02_data_engineering.py
 
 # 3. Split into Train (10d) / Val (2d) / Test (2d)
-python step3_1_split_data.py
+python step03_chronological_split.py
 
 # 4. Normalize features with MinMaxScaler
-python step3_2_scale_data.py
+python step04_feature_scaling.py
 
 # 5. (Optional) Verify Dataset & DataLoader shapes
-python step3_3_dataset.py
+python step05_sliding_window_dataset.py
 
 # 6. Train LSTM and evaluate on Test set
-python step5_train_model.py
+python step06_train_lstm_model.py
 ```
 
 After training completes, `data/best_lstm_model.pth` and `data/scaler.joblib` are the two key artifacts needed for the deployment phase.
