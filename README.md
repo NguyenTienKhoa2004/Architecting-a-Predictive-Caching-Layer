@@ -341,6 +341,14 @@ After training completes, `data/best_lstm_model.pth` and `data/scaler.joblib` ar
 >
 > **Usage:** Validates the 7-day to 14-day augmentation method. Confirms that Gaussian Noise Injection (±5%) is an established technique for generating synthetic time-series data that closely approximates natural variance while preventing overfitting.
 
+### 14-Day Rolling Window Justification (Implementation — Chapter 4)
+
+> **[7]** Digital Applied Team, "AI Content Personalization at Scale: Real-Time Guide," *Digital Applied Blog*, Mar. 2026. [Online]. Available: https://www.digitalapplied.com/blog/ai-content-personalization-scale-dynamic-real-time
+>
+> **Usage:** Validates the choice of a **14-day data window** for training the predictive model. The article establishes three key principles that align with this thesis: **(1)** user profile features must be recomputed over a **rolling 14-day window** to capture full weekly behavioral cycles (e.g., Monday traffic differs from Friday traffic); **(2)** data older than 2 weeks becomes "stale" and degrades prediction quality; **(3)** models should be **retrained every 7 days** to track behavioral drift. These principles directly support this project's 14-day augmented dataset and 10-2-2 day Train/Val/Test split.
+>
+> **Key Architectural Difference:** The article applies the 14-day window to a **live production** content personalization system at the web frontend layer, with continuous streaming data refreshed weekly. This thesis applies the same temporal principle to a **Proof-of-Concept offline** backend caching layer (standalone Redis), using a fixed 14-day dataset augmented from 7 days of Twitter traces via time-shifting and noise injection. The prediction target also differs: they predict *user content preferences*, while this thesis predicts *cache key access frequency*.
+
 ---
 
 ## License
